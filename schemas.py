@@ -1,48 +1,60 @@
 """
-Database Schemas
+Database Schemas for Laser-Engraved Slim Wallets Store
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a collection in MongoDB. The collection name
+is the lowercase class name (e.g., WalletStyle -> "walletstyle").
 """
-
+from typing import List, Optional
 from pydantic import BaseModel, Field
-from typing import Optional
 
-# Example schemas (replace with your own):
-
-class User(BaseModel):
+class WalletStyle(BaseModel):
     """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
+    Wallet styles available for purchase
+    Collection: "walletstyle"
     """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    title: str = Field(..., description="Display name of the wallet style")
+    description: Optional[str] = Field(None, description="Short description")
+    price: float = Field(..., ge=0, description="Base price USD")
+    images: List[str] = Field(default_factory=list, description="Image URLs for gallery")
+    finishes: List[str] = Field(default_factory=lambda: ["Matte Black", "Gunmetal", "Silver"], description="Available finishes")
+    in_stock: bool = Field(True, description="Whether available for purchase")
 
-class Product(BaseModel):
+class Upload(BaseModel):
     """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
+    Uploaded artwork for engraving
+    Collection: "upload"
     """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+    filename: str
+    content_type: str
+    size: int
+    data_b64: str = Field(..., description="Base64-encoded file contents")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class CartItem(BaseModel):
+    product_id: str
+    quantity: int = Field(1, ge=1)
+    finish: Optional[str] = None
+    engraving_text: Optional[str] = None
+    upload_id: Optional[str] = None
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Customer(BaseModel):
+    name: str
+    email: str
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+class Order(BaseModel):
+    """
+    Orders placed by customers
+    Collection: "order"
+    """
+    items: List[CartItem]
+    customer: Customer
+    subtotal: float = Field(..., ge=0)
+    shipping: float = Field(..., ge=0)
+    total: float = Field(..., ge=0)
+    status: str = Field("pending", description="pending|processing|completed|cancelled")
+    notes: Optional[str] = None
